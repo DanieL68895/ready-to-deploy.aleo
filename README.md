@@ -75,16 +75,20 @@ snarkos developer execute "$NAME.aleo" "hello" "1u32" "2u32" \
 --fee 1000000 \
 --record "$RECORD"
 After execution, you should see the following output
-image
+
 
 Use the received transaction hash to search for your contract execute on the explore
 That is it!
+
 8. Useful commands
 Add a new tmux session
 ctrl+b c
+
 Show all sessions
 ctrl+b w
+
 Detach from tmux session
 ctrl+b d
+
 Return to a tmux session
 tmux attach -t deploy
