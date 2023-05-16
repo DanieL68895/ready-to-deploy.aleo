@@ -1,94 +1,108 @@
-# ready-to-deploy.aleo
-Deploys a Smart Contract Aleo
-1. Create a new Aleo wallet
-If you already have a wallet, you can use it and skip the wallet creation step ✅
-To create a new wallet, go to the website and click the "Generate" button. Save the output in a safe place 🔒
-After saving the keys, use them to add variables to your server using the commands below
-Go on https://faucet.aleo.org/ and follow instruction or fill up this form https://docs.google.com/forms/d/e/1FAIpQLSf3c9VB2l65-X9lg5Uw7UIzE90NKDSDNWc_1AENEmQJNlttHw/viewform
+Aleo Deploy and Execute Demo
+These changes support the first iteration of deploying and executing program on the network.
 
-2. Request tokens for your wallet
+Bugs, usability suggestions, and feedback in general would be greatly appreciated.
 
-Go on https://faucet.aleo.org/ and follow instruction or fill up this form https://docs.google.com/forms/d/e/1FAIpQLSf3c9VB2l65-X9lg5Uw7UIzE90NKDSDNWc_1AENEmQJNlttHw/viewform
+Overview
+Learn how to deploy and execute a basic "hello world!" program on Aleo's network using Leo and snarkOS.
 
-To request tokens, you will need to send an SMS to the number +1-867-888-5688 with your wallet address in the following format:
-Send 50 credits to aleo.....
+Usage guide
+1. Prerequisites
+Make sure you have both Leo and snarkOS installed on your machine.
 
-PHONE
+To verify if you have Leo, open your terminal and type leo. If you don't see something like zsh: command not found: leo, you're good
 
-3. Download required packages and create a tmux session
-sudo apt update && \
-sudo apt install make clang pkg-config libssl-dev build-essential gcc xz-utils git curl vim tmux ntp jq llvm ufw -y && \
-tmux new -s deploy
-P.S. Creating a tmux session is required to build a binary, which takes some time. So you won't need to add variables and build a binary again if the ssh connection to your server lost. Just reconnect to the tmux session.
-4. Add your wallet and private key as a variable.
-echo Enter your Private Key: && read PK && \
-echo Enter your View Key: && read VK && \
-echo Enter your Address: && read ADDRESS
-5. Make sure the data is correct. If not, you can do step 4 again.
-echo Private Key: $PK && \
-echo View Key: $VK && \
-echo Address: $ADDRESS
-PHONE
+To verify if you have snarkOS, do the same thing you did with Leo but replace leo with snarkos
 
-After receiving a message from the bot about the successful replenishment of your wallet, you need to go to the faucet website and make sure that the transaction has been executed.
-Use the Transaction ID as the answer when using the following command.
-echo Enter your Transaction ID: && read TI
-CIPHERTEXT=$(curl -s https://vm.aleo.org/api/testnet3/transaction/$TI | jq -r '.execution.transitions[0].outputs[0].value')
-6. Install required software
-cd $HOME
-git clone https://github.com/AleoHQ/snarkOS.git --depth 1
-cd snarkOS
-bash ./build_ubuntu.sh
-source $HOME/.bashrc
-source $HOME/.cargo/env
-cd $HOME
-git clone https://github.com/AleoHQ/leo.git
-cd leo
-cargo install --path .
-7. Deploy a contract
-NAME=helloworld_"${ADDRESS:4:6}"
-mkdir $HOME/leo_deploy
-cd $HOME/leo_deploy
-leo new $NAME
-RECORD=$(snarkos developer decrypt --ciphertext $CIPHERTEXT --view-key $VK)
-snarkos developer deploy "$NAME.aleo" \
---private-key "$PK" \
---query "https://vm.aleo.org/api" \
---path "$HOME/leo_deploy/$NAME/build/" \
---broadcast "https://vm.aleo.org/api/testnet3/transaction/broadcast" \
---fee 4000000 \
---record "$RECORD"
-After executing the command, you should see a similar result.
-image
+Optional: Install the JSON Beautifier & Editor Chrome extension.
 
-Use the received transaction hash to search for your contract on the explore
-After your contract is displayed in the explorer, you can proceed to the next step.
-8. Execute a contract
-Use the transaction hash as the answer for the following command.
-echo Enter your Deploy hash: && read DH
-CIPHERTEXT=$(curl -s https://vm.aleo.org/api/testnet3/transaction/$DH | jq -r '.fee.transition.outputs[].value')
-RECORD=$(snarkos developer decrypt --ciphertext $CIPHERTEXT --view-key $VK)
-snarkos developer execute "$NAME.aleo" "hello" "1u32" "2u32" \
---private-key $PK \
---query "https://vm.aleo.org/api" \
---broadcast "https://vm.aleo.org/api/testnet3/transaction/broadcast" \
---fee 1000000 \
---record "$RECORD"
-After execution, you should see the following output
+Note:
+
+You can find instructions to install Leo on your machine here and snarkOS here
+Make sure to pull the latest versions of snarkos and leo from GitHub to your local machine
+2. Generate your test keys and wallet address
+In your favorite browser, navigate to https://aleo.tools/ and click the Generate button
+Save your Address, View Key, and Private Key in a safe place, you'll need them later
+3a. Seeding your wallet with credits
+To seed your wallet, you'll need to request credits from Aleo's faucet at faucet.aleo.org ⛲️.
+
+Note:
+
+It can take up to 5-minutes for the faucet to send your credits, to bide the time, concurrently move on to step 3b below.
+⚠️ International requests are not supported by the faucet at the moment (a solution is coming soon). In the meantime, if you need credits and are testing internationally, reach out to the Aleo team on Discord or Twitter for support.
+3b. Create a Leo application
+We'll need something to deploy, so let's create a simple test Leo application.
+
+Open your terminal and enter the following commands consecutively:
+
+Create a directory to store your Leo application - feel free to use a different name for this directory or location
+cd $HOME/Desktop
+mkdir demo_deploy_Leo_app && cd demo_deploy_Leo_app
+
+⚠️ Assign $WALLETADDRESS to the wallet address you saved
+WALLETADDRESS=""
+
+Generate a unique application name using part of your wallet address
+APPNAME=helloworld_"${WALLETADDRESS:4:6}"
+
+Create a new test Leo application
+leo new "${APPNAME}"
+
+Run your Leo application to make sure things are working
+cd "${APPNAME}" && leo run && cd -
+
+Save the path of your application - this is important later
+PATHTOAPP=$(realpath -q $APPNAME)
+
+4. Confirm the Aleo faucet ⛲️ has sent your wallet credits and obtain your ciphertext record value
+By this point, the Aleo faucet should have sent your wallet credits. Next, you'll need to verify your credit balance by decrypting the ciphertext record for the execute transfer that was sent to you.
+
+If you requested credits by texting with your phone number, you should also receive a confirmation with a URL that has a prefix of vm.aleo.org/api/testnet3/transaction...
+
+Alternatively, you can find your execute transaction confirmation by going to the faucet and searching the table provided (supported on desktop only currently) for your address. Once a result is returned, click on the Transaction ID field. If you do not see a result in the table, your credits have not yet been sent.
+
+You should be presented with a JSON object in a new browser window. If you haven't already, we highly recommend you install the JSON Beautifier & Editor Chrome extension.
+Navigate to object.execution.transitions[0].outputs[0].value and copy the ciphertext stored there
+5. Obtain your records plaintext
+Navigate to https://aleo.tools/ and click the Record tab in the nav bar at the top of the page
+Place the record ciphertext you copied in the previous step in the Record (Ciphertext) field
+Place your view key in the View Key field
+Copy the plaintext record provided. If you do not see it, it's likely you copied the wrong ciphertext record in step 4. Consider revisiting or reach out to hello@aleo.org.
+Save your plaintext record in the same place as you did your address, view key, and private key. You will need it later.
+6. Deploy your test application
+Now that we have all the details required, we can deploy your first Leo application.
+
+Open the same terminal instance as before and enter the following commands consecutively:
+
+Navigate to the path of your app
+cd $PATHTOAPP && cd ..
+
+⚠️ Assign $PRIVATEKEY to the private address you saved earlier
+PRIVATEKEY=""
+
+⚠️ Assign $RECORD to the plaintext record you saved earlier
+RECORD=""
+
+Deploy your Leo application (if all your variables were assigned correctly, you should be able to copy/paste the following
+snarkos developer deploy "${APPNAME}.aleo" --private-key "${PRIVATEKEY}" --query "https://vm.aleo.org/api" --path "./${APPNAME}/build/" --broadcast "https://vm.aleo.org/api/testnet3/transaction/broadcast" --fee 25000000 --record "${RECORD}"
 
 
-Use the received transaction hash to search for your contract execute on the explore
-That is it!
+You should have seen a confirmation that your Aleo application was deployed in the form of a transaction ID that looks like the following at1rkkpqu5k4rt86zzccczw6cxeyvrl7hxydvvv7dhl7zr7p9w40c8s70kwm8. Make sure to copy this string as you'll need it for the last step.
 
-8. Useful commands
-Add a new tmux session
-ctrl+b c
+7. Execute your test application
+Finally, it is time to execute the application you just deployed!
 
-Show all sessions
-ctrl+b w
+You'll need to update the --record flag with the latest transaction linked to your wallet balance. In this case, you can obtain that by going to the following URL: https://vm.aleo.org/api/testnet3/transaction/$DEPLOY_TX_ID but replace $DEPLOY_TX_ID with the transaction ID provided to you once your application was deployed (or from the most recent transaction linked to your wallet address). An example URL looks like so: https://vm.aleo.org/api/testnet3/transaction/at1rkkpqu5k4rt86zzccczw6cxeyvrl7hxydvvv7dhl7zr7p9w40c8s70kwm8
+In the JSON object provided at https://vm.aleo.org/api/testnet3/transaction/$DEPLOY_TX_ID, navigate to: object.fee.transition.outputs[0].value and copy the record ciphertext value.
+Head to aleo.tools and navigate to the Record tab and paste the record ciphertext you just copied as well as your wallet's view key
+Similar to the steps we followed for a deploy transaction, update your RECORD variable with the record plaintext you just decrypted by doing the following:
+⚠️ Assign $RECORD to the plaintext record you saved earlier
 
-Detach from tmux session
-ctrl+b d
+RECORD=""
 
-Return to a tmux session
-tmux attach -t deploy
+Then just paste the following command in your terminal
+
+snarkos developer execute "${APPNAME}.aleo" "main" "1u32" "2u32" --private-key "${PRIVATEKEY}" --query "https://vm.aleo.org/api" --broadcast "https://vm.aleo.org/api/testnet3/transaction/broadcast" --fee 100000 --record "${RECORD}"
+
+
+Awesome! You have successfully deployed and executed a Leo application to Testnet III, how exciting 🎉
